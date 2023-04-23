@@ -5,7 +5,7 @@ import Footer from './components/Footer'
 import Notification from './components/Notification'
 import './index.css'
 
-const App = (props) => {
+const App = () => {
     const [notes, setNotes] = useState([])
     const [newNote, setNewNote] = useState('')
     const [showAll, setShowAll] = useState(true)

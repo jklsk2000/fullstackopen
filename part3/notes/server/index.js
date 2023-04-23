@@ -4,9 +4,11 @@ const cors = require('cors')
 const Note = require('./models/note')
 
 const app = express()
+
+// middleware
+app.use(express.static('build'))
 app.use(express.json())
 app.use(cors())
-// app.use(express.static('build'))
 
 app.get('/', (req, res) => {
     res.send('<h1>Hello World!</h1>')
@@ -18,7 +20,7 @@ app.get('/api/notes', (req, res) => {
     })
 })
 
-app.get('/api/notes/:id', (req, res) => {
+app.get('/api/notes/:id', (req, res, next) => {
     Note.findById(req.params.id).then(note => {
         if (note) {
             res.json(note)
@@ -26,10 +28,7 @@ app.get('/api/notes/:id', (req, res) => {
             res.status(404).end()
         }
     })
-    .catch(err => {
-        console.log(err)
-        res.status(400).send({ error: 'malformatted id' })
-    })
+    .catch(err => next(err))
 })
 
 app.post('/api/notes', (req, res) => {
@@ -51,13 +50,44 @@ app.post('/api/notes', (req, res) => {
     })
 })
 
-app.delete('/api/notes/:id', (req, res) => {
-    // const id = Number(req.params.id)
-    // notes = notes.filter(n => n.id !== id)
-    // res.status(204).end()
+app.put('/api/notes/:id', (req, res, next) => {
+    const body = req.body
+
+    const note = {
+        content: body.content,
+        important: body.important,
+    }
+
+    Note.findByIdAndUpdate(req.params.id, note, { new: true })
+        .then(updatedNote => {
+            res.json(updatedNote)
+        })
+        .catch(err => next(err))
+})
+
+app.delete('/api/notes/:id', (req, res, next) => {
+	Note.findByIdAndRemove(req.params.id)
+		.then(result => {
+			res.status(204).end()
+		})
+		.catch(err => next(err))
 })
 
 const PORT = process.env.PORT
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`)
 })
+
+const unknownEndpoint = (req, res) => {
+    res.status(404).send({ error: 'unknown endpoint' })
+}
+app.use(unknownEndpoint)
+
+const errorHandler = (err, req, res, next) => {
+	console.error(err.message)
+	if (err.name === 'CastError') {
+		return res.status(400).send({ error: 'malfromatted id' })
+	}
+	next(err)
+}
+app.use(errorHandler)

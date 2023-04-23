@@ -5,9 +5,10 @@ const morgan = require('morgan')
 const Person = require('./models/person')
 
 const app = express()
+
+app.use(express.static('build'))
 app.use(express.json())
 app.use(cors())
-app.use(express.static('build'))
 const requestLogger = (req, res, next) => {
     console.log('Method: ', req.method)
     console.log('Path: ', req.path)
@@ -18,6 +19,10 @@ const requestLogger = (req, res, next) => {
 app.use(requestLogger)
 app.use(morgan('tiny'))
 
+const PORT = process.env.PORT || 3001
+app.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`)
+})
 
 app.get('/info', (req, res) => {
     res.send(`Phonebook has info for ${persons.length} people
@@ -32,12 +37,17 @@ app.get('/api/persons', (req, res) => {
         })
 })
 
-app.get('/api/persons/:id', (req, res) => {
+app.get('/api/persons/:id', (req, res, next) => {
     Person
         .findById(req.params.id)
         .then(person => {
-            res.json(person)
+            if (person) {
+                res.json(person)
+            } else {
+                res.status(404).end()
+            }
         })
+        .catch(err => next(err))
 })
 
 app.post('/api/persons', (req, res) => {
@@ -73,13 +83,39 @@ app.post('/api/persons', (req, res) => {
     })
 })
 
-app.delete('/api/persons/:id', (req, res) => {
-    const id = Number(req.params.id)
-    persons = persons.filter(p => p.id !== id)
-    res.status(204).end()
+app.put('/api/persons/:id', (req, res, next) => {
+    const body = req.body
+    const person = {
+        name: body.name,
+        number: body.number,
+    }
+    Person.findByIdAndUpdate(req.params.id, person, { new: true })
+        .then(updatedPerson => {
+            res.json(updatedPerson)
+        })
+        .catch(err => next(err))
 })
 
-const PORT = process.env.PORT || 3001
-app.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT}`)
+app.delete('/api/persons/:id', (req, res, next) => {
+    Person.findByIdAndDelete(req.params.id)
+        .then(result => {
+            res.status(204).end()
+        })
+        .catch(err => next(err))
 })
+
+const unknownEndpoint = (req, res) => {
+    res.status(404).send({ error: 'unknown endpoint' })
+}
+
+app.use(unknownEndpoint)
+
+const errorHandler = (error, request, response, next) => {
+	console.error(error.message)
+	if (error.name === 'CastError') {
+		return response.status(400).send({ error: 'malfromatted id' })
+	}
+	next(error)
+}
+
+app.use(errorHandler)
