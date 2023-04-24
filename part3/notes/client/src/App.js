@@ -9,7 +9,7 @@ const App = () => {
     const [notes, setNotes] = useState([])
     const [newNote, setNewNote] = useState('')
     const [showAll, setShowAll] = useState(true)
-    const [errMsg, setErrMsg] = useState('some error happened...')
+    const [errMsg, setErrMsg] = useState(null)
 
     useEffect(() => {
         noteService
